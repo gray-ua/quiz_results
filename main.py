@@ -30,19 +30,30 @@ class QuizResult(BaseModel):
 # Ендпоінт для прийому результатів
 @app.post("/api/submit")
 def submit_result(data: QuizResult):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        insert_query = """
+        INSERT INTO quiz_results (student_name, class_name, score, time_seconds)
+        VALUES (%s, %s, %s, %s);
+        """
+        cursor.execute(insert_query, (data.student_name, data.class_name, data.score, data.time_seconds))
+        conn.commit()
+        
+        cursor.close()
+        return {"status": "success", "message": "Результат збережено!"}
     
-    insert_query = """
-    INSERT INTO quiz_results (student_name, class_name, score, time_seconds)
-    VALUES (%s, %s, %s, %s);
-    """
-    cursor.execute(insert_query, (data.student_name, data.class_name, data.score, data.time_seconds))
-    conn.commit()
-    
-    cursor.close()
-    conn.close()
-    return {"status": "success", "message": "Результат збережено!"}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"Помилка сервера/БД: {e}")
+        # Повертаємо HTTPException, щоб FastAPI наклав CORS-заголовки на відповідь з помилкою
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 # Ендпоінт для отримання рейтингу (Leaderboard)
 @app.get("/api/leaderboard")

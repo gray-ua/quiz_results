@@ -16,8 +16,7 @@ app.add_middleware(
 )
 
 # Рядок підключення з Neon.tech (Database URL)
-DATABASE_URL = "postgresql://neondb_owner:npg_8GzsnEDJ6PLf@ep-lingering-firefly-b1k4tj0w-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-
+DATABASE_URL = "postgresql://neondb_owner:npg_tkvyQ5SGXg6a@ep-cool-leaf-b2kb1p43-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
@@ -28,7 +27,7 @@ class QuizResult(BaseModel):
     score: int
     time_seconds: int
 
-# 1. Ендпоінт для прийому результатів
+# Ендпоінт для прийому результатів
 @app.post("/api/submit")
 def submit_result(data: QuizResult):
     conn = get_db_connection()
@@ -45,7 +44,7 @@ def submit_result(data: QuizResult):
     conn.close()
     return {"status": "success", "message": "Результат збережено!"}
 
-# 2. Ендпоінт для отримання рейтингу (Leaderboard)
+# Ендпоінт для отримання рейтингу (Leaderboard)
 @app.get("/api/leaderboard")
 def get_leaderboard():
     conn = get_db_connection()
@@ -80,3 +79,13 @@ def get_leaderboard():
             {"class": r[0], "avg_score": float(r[1])} for r in top_classes
         ]
     }
+
+# Допоміжний ендпоінт для розігріву сервера та БД
+@app.get("/api/ping")
+def ping_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1;") # Мінімальний запит для пробудження БД
+    cursor.close()
+    conn.close()
+    return {"status": "awake"}

@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # Рядок підключення з Neon.tech (Database URL)
-DATABASE_URL = "postgresql://neondb_owner:npg_tkvyQ5SGXg6a@ep-cool-leaf-b2kb1p43-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DATABASE_URL = "postgresql://user_name:my_password@ep-cool-leaf-b2kb1p43-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
@@ -58,38 +58,58 @@ def submit_result(data: QuizResult):
 # Ендпоінт для отримання рейтингу (Leaderboard)
 @app.get("/api/leaderboard")
 def get_leaderboard():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Топ учнів
-    cursor.execute("""
-        SELECT student_name, class_name, score, time_seconds 
-        FROM quiz_results 
-        ORDER BY score DESC, time_seconds ASC 
-        LIMIT 10;
-    """)
-    top_students = cursor.fetchall()
-    
-    # Топ класів
-    cursor.execute("""
-        SELECT class_name, ROUND(AVG(score), 2) AS avg_score 
-        FROM quiz_results 
-        GROUP BY class_name 
-        ORDER BY avg_score DESC;
-    """)
-    top_classes = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
-    return {
-        "top_students": [
-            {"name": r[0], "class": r[1], "score": r[2], "time": r[3]} for r in top_students
-        ],
-        "top_classes": [
-            {"class": r[0], "avg_score": float(r[1])} for r in top_classes
-        ]
-    }
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Переконуємося, що таблиця існує, аби SQL-запити нижче не падали
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quiz_results (
+                id SERIAL PRIMARY KEY,
+                student_name VARCHAR(100) NOT NULL,
+                class_name VARCHAR(10) NOT NULL,
+                score INT NOT NULL,
+                time_seconds INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # Топ учнів
+        cursor.execute("""
+            SELECT student_name, class_name, score, time_seconds 
+            FROM quiz_results 
+            ORDER BY score DESC, time_seconds ASC 
+            LIMIT 10;
+        """)
+        top_students = cursor.fetchall()
+        
+        # Топ класів
+        cursor.execute("""
+            SELECT class_name, COALESCE(ROUND(AVG(score), 2), 0) AS avg_score 
+            FROM quiz_results 
+            GROUP BY class_name 
+            ORDER BY avg_score DESC;
+        """)
+        top_classes = cursor.fetchall()
+        
+        cursor.close()
+        
+        return {
+            "top_students": [
+                {"name": r[0], "class": r[1], "score": r[2], "time": r[3]} for r in top_students
+            ],
+            "top_classes": [
+                {"class": r[0], "avg_score": float(r[1])} for r in top_classes
+            ]
+        }
+    except Exception as e:
+        print(f"Помилка отримання рейтингу: {e}")
+        # Якщо таблиця порожня або сталася помилка, повертаємо порожній список замість падіння 500
+        return {"top_students": [], "top_classes": []}
+    finally:
+        if conn:
+            conn.close()
 
 # Допоміжний ендпоінт для розігріву сервера та БД
 @app.get("/api/ping")

@@ -114,9 +114,29 @@ def get_leaderboard():
 # Допоміжний ендпоінт для розігріву сервера та БД
 @app.get("/api/ping")
 def ping_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT 1;") # Мінімальний запит для пробудження БД
-    cursor.close()
-    conn.close()
-    return {"status": "awake"}
+    conn = None
+    try:
+        # Підключаємося до Neon (це розбудить базу, якщо вона спала)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Виконуємо найлегший SQL-запит для перевірки зв'язку
+        cursor.execute("SELECT 1;") # Мінімальний запит для пробудження БД
+        cursor.fetchone()
+
+        cursor.close()
+        return {
+            "status": "ok", 
+            "message": "Render Server & Neon Database are fully awake!"
+        }
+    except Exception as e:
+        print(f"Ping/Warmup Error: {e}")
+        # Навіть якщо сталася помилка з БД, повертаємо 200 із попередженням, 
+        # щоб не ламати фронтенд і дати Neon ще кілька секунд на розігрів
+        return {
+            "status": "warning", 
+            "message": "Server awake, database is still warming up..."
+        }
+    finally:
+        if conn:
+            conn.close()

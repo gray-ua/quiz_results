@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # Рядок підключення з Neon.tech (Database URL)
-DATABASE_URL = "postgresql://user_name:my_password@ep-cool-leaf-b2kb1p43-pooler.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DATABASE_URL = "postgresql://neondb_owner:npg_8GzsnEDJ6PLf@ep-lingering-firefly-b1k4tj0w-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
